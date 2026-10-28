@@ -1,5 +1,5 @@
 // Bump VERSION whenever any file changes so phones pick up the new copy.
-const VERSION = 'mpda-cotizador-v1';
+const VERSION = 'mpda-cotizador-v2';
 const FILES = [
   './',
   'index.html',
