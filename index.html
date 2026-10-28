@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MPDA Cotizador</title>
+<meta name="theme-color" content="#2F5597">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cotizador">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --brand: #2F5597;
+    --teal: #2E9C8C;
+    --ink: #1d2733;
+    --muted: #6b7684;
+    --line: #dde3ea;
+    --bg: #f3f5f8;
+    --card: #ffffff;
+    --danger: #c0392b;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  header.top { position: sticky; top: 0; z-index: 10; background: var(--card);
+    border-bottom: 1px solid var(--line); padding: calc(env(safe-area-inset-top) + 8px) 16px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand img { height: 30px; }
+  .brand b { font-size: 17px; }
+  .brand .who { margin-left: auto; font-size: 13px; color: var(--muted); }
+  nav.tabs { display: flex; gap: 4px; margin-top: 8px; }
+  nav.tabs button { flex: 1; background: none; border: 0; padding: 10px 0; font-size: 15px;
+    color: var(--muted); border-bottom: 3px solid transparent; }
+  nav.tabs button.on { color: var(--brand); border-color: var(--brand); font-weight: 600; }
+  main { padding: 12px 16px 120px; max-width: 720px; margin: 0 auto; }
+  section.card { background: var(--card); border-radius: var(--radius); padding: 14px;
+    margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+  section.card > h2 { margin: 0 0 10px; font-size: 15px; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--brand); display: flex; align-items: center; }
+  section.card > h2 .right { margin-left: auto; text-transform: none; letter-spacing: 0; }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 8px 0 4px; }
+  input, select, textarea { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--line);
+    border-radius: 9px; background: #fff; color: var(--ink); }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--teal); border-color: transparent; }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; min-width: 0; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; background: #fff; padding: 10px; font: inherit; color: var(--muted); }
+  .seg button.on { background: var(--brand); color: #fff; font-weight: 600; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0;
+    border-radius: 10px; padding: 12px 16px; font: inherit; font-weight: 600; background: var(--brand); color: #fff; }
+  .btn.ghost { background: #eef2f8; color: var(--brand); }
+  .btn.small { padding: 7px 11px; font-size: 14px; font-weight: 500; }
+  .btn.danger { background: #fbeceb; color: var(--danger); }
+  .btn.block { width: 100%; }
+  .qnum { font: 600 18px/1.2 ui-monospace, Menlo, monospace; color: var(--brand); padding: 10px 12px;
+    background: #eef2f8; border-radius: 9px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .item { border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+  .item .head { display: flex; align-items: center; gap: 8px; }
+  .item .head b { color: var(--brand); }
+  .item .head .sub { margin-left: auto; font-size: 13px; color: var(--muted); }
+  .item .actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+  .term { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); }
+  .term:first-of-type { border-top: 0; }
+  .term input[type=checkbox] { width: 22px; height: 22px; flex: none; margin-top: 2px; accent-color: var(--brand); }
+  .term .body { flex: 1; min-width: 0; }
+  .term .title { font-weight: 600; font-size: 15px; }
+  .term .params { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; align-items: center; font-size: 14px; color: var(--muted); }
+  .term .params input { width: 74px; padding: 7px 8px; }
+  .term .params select { width: auto; padding: 7px 8px; }
+  .term .preview { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .term.off .body { opacity: .45; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
+    padding: 10px 16px calc(env(safe-area-inset-bottom) + 10px); display: flex; gap: 10px; align-items: center; z-index: 10; }
+  .bar .total { flex: 1; }
+  .bar .total small { display: block; color: var(--muted); font-size: 12px; }
+  .bar .total b { font-size: 19px; }
+  .hist { display: flex; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+  .hist:first-of-type { border-top: 0; }
+  .hist .info { flex: 1; min-width: 0; }
+  .hist .info b { display: block; font-family: ui-monospace, Menlo, monospace; }
+  .hist .info span { font-size: 13px; color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 20px 0; }
+  .hidden { display: none !important; }
+  .toast { position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%); background: #222; color: #fff;
+    padding: 10px 16px; border-radius: 20px; font-size: 14px; z-index: 20; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .profile-pick { display: grid; gap: 10px; }
+  .profile-pick button { text-align: left; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font: inherit; }
+  .profile-pick button.on { border-color: var(--brand); box-shadow: 0 0 0 2px var(--brand) inset; }
+  .profile-pick small { color: var(--muted); display: block; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img src="logo.png" alt="MPDA">
+    <b>Cotizador</b>
+    <span class="who" id="whoLabel"></span>
+  </div>
+  <nav class="tabs">
+    <button data-tab="nueva" class="on">Cotización</button>
+    <button data-tab="historial">Historial</button>
+    <button data-tab="ajustes">Ajustes</button>
+  </nav>
+</header>
+
+<main>
+  <!-- ===================== COTIZACION ===================== -->
+  <div id="tab-nueva">
+    <section class="card">
+      <h2>Datos generales <span class="right"><button class="btn ghost small" id="btnNew">Nueva</button></span></h2>
+      <label>Número de cotización (automático)</label>
+      <div class="qnum" id="qNumber">—</div>
+      <div class="row">
+        <div>
+          <label for="qDate">Fecha</label>
+          <input type="date" id="qDate">
+        </div>
+        <div>
+          <label>Idioma del PDF</label>
+          <div class="seg" id="qLang">
+            <button data-v="en">English</button>
+            <button data-v="es">Español</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="qProfile">Contacto</label>
+          <select id="qProfile"></select>
+        </div>
+        <div>
+          <label for="qLocation">Ubicación</label>
+          <input id="qLocation">
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Cliente</h2>
+      <label for="cName">Empresa</label>
+      <input id="cName" list="clientList" autocomplete="off" placeholder="Ej. Able Farm">
+      <datalist id="clientList"></datalist>
+      <div class="row">
+        <div>
+          <label for="cCode">Clave (para el número)</label>
+          <input id="cCode" autocapitalize="characters" maxlength="8">
+        </div>
+        <div>
+          <label for="cAttn">Atención a</label>
+          <input id="cAttn" placeholder="Nombre">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="cEmail">Correo</label>
+          <input id="cEmail" type="email" inputmode="email" autocapitalize="off">
+        </div>
+        <div>
+          <label for="cPhone">Teléfono</label>
+          <input id="cPhone" type="tel">
+        </div>
+      </div>
+      <div class="hint">Los clientes se guardan en este teléfono para la próxima vez.</div>
+    </section>
+
+    <section class="card">
+      <h2>Partidas</h2>
+      <div id="items"></div>
+      <datalist id="productList"></datalist>
+      <button class="btn ghost block" id="btnAddItem">+ Agregar partida</button>
+    </section>
+
+    <section class="card">
+      <h2>Términos y condiciones <span class="right"><button class="btn ghost small" id="btnSaveTerms">Guardar como default</button></span></h2>
+      <div id="terms"></div>
+      <div id="customTerms"></div>
+      <button class="btn ghost block" id="btnAddTerm" style="margin-top:8px">+ Agregar término</button>
+    </section>
+  </div>
+
+  <!-- ===================== HISTORIAL ===================== -->
+  <div id="tab-historial" class="hidden">
+    <section class="card">
+      <h2>Cotizaciones guardadas</h2>
+      <input id="histSearch" placeholder="Buscar por cliente o número">
+      <div id="histList" style="margin-top:6px"></div>
+    </section>
+  </div>
+
+  <!-- ===================== AJUSTES ===================== -->
+  <div id="tab-ajustes" class="hidden">
+    <section class="card">
+      <h2>¿Quién usa este teléfono?</h2>
+      <div class="profile-pick" id="profilePick"></div>
+      <div class="hint">Se usa como contacto por defecto en cada cotización nueva.</div>
+    </section>
+    <section class="card">
+      <h2>Datos de contacto</h2>
+      <div id="profileEdit"></div>
+    </section>
+    <section class="card">
+      <h2>Respaldo</h2>
+      <p class="hint" style="margin-top:0">Todo se guarda solo en este teléfono. Exporta un respaldo de vez en cuando o para pasar tus clientes y productos a otro teléfono.</p>
+      <div class="row">
+        <button class="btn ghost" id="btnExport">Exportar</button>
+        <button class="btn ghost" id="btnImport">Importar</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" class="hidden">
+    </section>
+  </div>
+</main>
+
+<div class="bar" id="bar">
+  <div class="total"><small>Total USD</small><b id="totalLabel">$0.00</b></div>
+  <button class="btn ghost" id="btnPreview">Ver</button>
+  <button class="btn" id="btnShare">Enviar PDF</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ---------------------------------------------------------------- storage
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem('mpda.' + key); return v ? JSON.parse(v) : fallback; }
+    catch { return fallback; }
+  },
+  set(key, value) {
+    try { localStorage.setItem('mpda.' + key, JSON.stringify(value)); } catch {}
+  }
+};
+
+const DEFAULT_PROFILES = [
+  { id: 'jose', name: 'Jose Vega', title: '', phone: '3318039863', email: 'jose.v@mpda.com.mx' },
+  { id: 'pedro', name: 'Pedro Valdés', title: 'Operations Manager', phone: '3313082884', email: 'pedro.v@mpda.com.mx' }
+];
+
+const DEFAULT_TERMS = {
+  on: { pay: true, mat: true, fx: true, q: true, valid: true, del: true, ncnr: true },
+  payPct: 100, payDays: 90, matPct: 10, fxPct: 5, qDays: 5, validDays: 30, delivery: 'door',
+  custom: []
+};
+
+const COMPANY = 'Métodos Integrales de Procesos Especializados|en Distribución y Asesoramiento';
+
+let settings = Object.assign({ profileId: null, profiles: DEFAULT_PROFILES, terms: DEFAULT_TERMS, location: 'Guadalajara, Mexico' },
+  store.get('settings', {}));
+let clients = store.get('clients', []);
+let products = store.get('products', []);
+let quotes = store.get('quotes', []);
+let q; // current quote
+
+const saveSettings = () => store.set('settings', settings);
+
+// ---------------------------------------------------------------- helpers
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = v => { const n = parseFloat(String(v ?? '').replace(/[,\s$]/g, '')); return isNaN(n) ? 0 : n; };
+const fmtInt = n => Math.round(n).toLocaleString('en-US');
+const fmtMoney = n => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPU = n => n.toLocaleString('en-US', { minimumFractionDigits: 5, maximumFractionDigits: 5 });
+const todayISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function profile(id) {
+  return settings.profiles.find(p => p.id === id) || settings.profiles[0];
+}
+
+// Client code: first word gives 2 letters, following words give consonants, 5 letters total.
+// "Able Farm" -> ABFRM
+function suggestCode(name) {
+  const words = String(name).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
+    .replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/)
+    .filter(w => w && !['SA', 'DE', 'CV', 'S', 'A', 'C', 'V', 'RL', 'SAPI', 'INC', 'LLC', 'THE', 'LA', 'EL', 'Y'].includes(w));
+  if (!words.length) return '';
+  const squash = w => w[0] + w.slice(1).replace(/[AEIOU]/g, '');
+  if (words.length === 1) return squash(words[0]).slice(0, 5);
+  const first = words[0].slice(0, 2);
+  const rest = words.slice(1).map(squash).join('');
+  return (first + rest).slice(0, 5);
+}
+
+// Quote number: CLIENTCODE + MMDDYYYY, with -2, -3... when repeated
+function quoteNumber(code, dateISO, selfId) {
+  const [y, m, d] = (dateISO || todayISO()).split('-');
+  const base = (code || 'MPDA').toUpperCase() + m + d + y;
+  const taken = new Set(quotes.filter(x => x.id !== selfId).map(x => x.number));
+  if (!taken.has(base)) return base;
+  let i = 2; while (taken.has(base + '-' + i)) i++;
+  return base + '-' + i;
+}
+
+const DELIVERY = {
+  door: { label: 'Entrega a domicilio', en: 'Delivery to Door', es: 'Entrega a domicilio' },
+  exw: { label: 'Recoge el cliente (EXW)', en: 'EXW – Pick up at our facility', es: 'EXW – Recolección en nuestras instalaciones' }
+};
+
+// Each standard term: label in the app, editable params, and the sentence in each language
+const TERM_DEFS = [
+  { key: 'pay', label: 'Pago',
+    params: [['payPct', '%'], ['payDays', 'días después de la entrega']],
+    en: t => `Payment requirements: ${t.payPct}% ${t.payDays} Days after material is delivered`,
+    es: t => `Condiciones de pago: ${t.payPct}% a ${t.payDays} días después de la entrega del material` },
+  { key: 'mat', label: 'Ajuste por costo de material',
+    params: [['matPct', '% de variación']],
+    en: t => `Material cost: The price will be adjusted in case the material cost fluctuates more than ${t.matPct}% at the time of purchase.`,
+    es: t => `Costo de material: El precio se ajustará en caso de que el costo del material varíe más de ${t.matPct}% al momento de la compra.` },
+  { key: 'fx', label: 'Ajuste por tipo de cambio',
+    params: [['fxPct', '% de variación']],
+    en: t => `USD exchange rate: The price will be adjusted in case the rate fluctuates over ${t.fxPct}% at the purchase time.`,
+    es: t => `Tipo de cambio USD: El precio se ajustará en caso de que el tipo de cambio varíe más de ${t.fxPct}% al momento de la compra.` },
+  { key: 'q', label: 'Reclamos de calidad',
+    params: [['qDays', 'días para reportar']],
+    en: t => `Quality feedback should be provided within ${t.qDays} days of arrival. We will do our best to replace or repair our part at our cost in case of defects are 100% validated as our fault. No quality feedback within ${t.qDays} days of arrival will be considered product being fully acceptable, we are not responsible for cost and liability beyond the part supplied.`,
+    es: t => `Cualquier reclamo de calidad deberá reportarse dentro de los ${t.qDays} días posteriores a la llegada. Haremos lo posible por reemplazar o reparar la pieza a nuestro costo cuando el defecto sea validado al 100% como responsabilidad nuestra. Si no se recibe retroalimentación de calidad dentro de los ${t.qDays} días posteriores a la llegada, el producto se considerará totalmente aceptado; no somos responsables de costos más allá de la pieza suministrada.` },
+  { key: 'valid', label: 'Vigencia',
+    params: [['validDays', 'días']],
+    en: t => `Quote is valid for ${t.validDays} days, please contact us for any updates.`,
+    es: t => `Cotización válida por ${t.validDays} días, contáctenos para cualquier actualización.` },
+  { key: 'del', label: 'Entrega',
+    params: [['delivery', 'select']],
+    en: t => (DELIVERY[t.delivery] || DELIVERY.door).en,
+    es: t => (DELIVERY[t.delivery] || DELIVERY.door).es },
+  { key: 'ncnr', label: 'Piezas NCNR (no cancelables, no retornables)',
+    params: [],
+    en: () => 'Parts are NCNR',
+    es: () => 'Las piezas son NCNR (no cancelables, no retornables)' }
+];
+
+function termLines(t, lang) {
+  const lines = TERM_DEFS.filter(d => t.on[d.key]).map(d => d[lang](t));
+  t.custom.filter(c => c.on && c.text.trim()).forEach(c => lines.push(c.text.trim()));
+  return lines;
+}
+
+// ---------------------------------------------------------------- quote state
+function blankItem() { return { desc: '', material: '', demand: '', pu: '', lt: '30', moq: 'TBD' }; }
+
+function newQuote() {
+  return {
+    id: uid(), number: '', date: todayISO(), lang: 'en',
+    profileId: settings.profileId || settings.profiles[0].id,
+    location: settings.location,
+    client: { name: '', code: '', attn: '', email: '', phone: '' }, codeFrom: 'auto',
+    items: [blankItem()],
+    terms: clone(settings.terms)
+  };
+}
+
+const total = () => q.items.reduce((s, it) => s + num(it.demand) * num(it.pu), 0);
+
+function saveDraft() { store.set('draft', q); }
+
+function refreshComputed() {
+  if (q.codeFrom === 'auto') { q.client.code = suggestCode(q.client.name); $('#cCode').value = q.client.code; }
+  q.number = quoteNumber(q.client.code, q.date, q.id);
+  $('#qNumber').textContent = q.number;
+  $('#totalLabel').textContent = '$' + fmtMoney(total());
+  q.items.forEach((it, i) => {
+    const el = document.querySelector(`[data-sub="${i}"]`);
+    if (el) el.textContent = '$' + fmtMoney(num(it.demand) * num(it.pu));
+  });
+  saveDraft();
+}
+
+// ---------------------------------------------------------------- render: form
+function renderForm() {
+  $('#qDate').value = q.date;
+  $('#qLocation').value = q.location;
+  document.querySelectorAll('#qLang button').forEach(b => b.classList.toggle('on', b.dataset.v === q.lang));
+  $('#qProfile').innerHTML = settings.profiles.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  $('#qProfile').value = q.profileId;
+  for (const k of ['name', 'code', 'attn', 'email', 'phone']) $('#c' + k[0].toUpperCase() + k.slice(1)).value = q.client[k];
+  $('#clientList').innerHTML = clients.map(c => `<option value="${esc(c.name)}">`).join('');
+  $('#productList').innerHTML = products.map(p => `<option value="${esc(p.desc)}">`).join('');
+  renderItems();
+  renderTerms();
+  refreshComputed();
+}
+
+function renderItems() {
+  $('#items').innerHTML = q.items.map((it, i) => `
+    <div class="item" data-i="${i}">
+      <div class="head"><b>${i + 1}</b><span class="sub" data-sub="${i}"></span></div>
+      <label>Descripción</label>
+      <input data-f="desc" list="productList" autocomplete="off" value="${esc(it.desc)}">
+      <label>Material</label>
+      <textarea data-f="material" rows="2">${esc(it.material)}</textarea>
+      <div class="row">
+        <div><label>Demanda anual</label><input data-f="demand" inputmode="numeric" value="${esc(it.demand)}"></div>
+        <div><label>P/U (USD)</label><input data-f="pu" inputmode="decimal" value="${esc(it.pu)}" placeholder="0.00000"></div>
+      </div>
+      <div class="row">
+        <div><label>LT (días)</label><input data-f="lt" value="${esc(it.lt)}"></div>
+        <div><label>MOQ</label><input data-f="moq" value="${esc(it.moq)}"></div>
+      </div>
+      <div class="actions">
+        <button class="btn ghost small" data-act="dup">Duplicar</button>
+        ${q.items.length > 1 ? '<button class="btn danger small" data-act="del">Quitar</button>' : ''}
+      </div>
+    </div>`).join('');
+}
+
+function renderTerms() {
+  const t = q.terms;
+  $('#terms').innerHTML = TERM_DEFS.map(d => `
+    <div class="term ${t.on[d.key] ? '' : 'off'}" data-k="${d.key}">
+      <input type="checkbox" ${t.on[d.key] ? 'checked' : ''}>
+      <div class="body">
+        <div class="title">${d.label}</div>
+        ${d.params.length ? `<div class="params">${d.params.map(([f, unit]) => unit === 'select'
+          ? `<select data-p="${f}">${Object.entries(DELIVERY).map(([v, o]) => `<option value="${v}" ${t[f] === v ? 'selected' : ''}>${o.label}</option>`).join('')}</select>`
+          : `<input data-p="${f}" inputmode="numeric" value="${esc(t[f])}"> <span>${unit}</span>`).join('')}</div>` : ''}
+        <div class="preview">${esc(d[q.lang](t))}</div>
+      </div>
+    </div>`).join('');
+  $('#customTerms').innerHTML = t.custom.map((c, i) => `
+    <div class="term ${c.on ? '' : 'off'}" data-c="${i}">
+      <input type="checkbox" ${c.on ? 'checked' : ''}>
+      <div class="body">
+        <textarea rows="2" placeholder="Escribe el término en el idioma del PDF">${esc(c.text)}</textarea>
+        <div class="actions" style="display:flex;justify-content:flex-end;margin-top:6px">
+          <button class="btn danger small" data-act="delterm">Quitar</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function updateTermPreviews() {
+  TERM_DEFS.forEach(d => {
+    const el = document.querySelector(`.term[data-k="${d.key}"] .preview`);
+    if (el) el.textContent = d[q.lang](q.terms);
+  });
+}
+
+// ---------------------------------------------------------------- events: form
+$('#qDate').addEventListener('change', e => { q.date = e.target.value || todayISO(); refreshComputed(); });
+$('#qLocation').addEventListener('input', e => { q.location = e.target.value; saveDraft(); });
+$('#qProfile').addEventListener('change', e => { q.profileId = e.target.value; saveDraft(); });
+$('#qLang').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  q.lang = b.dataset.v;
+  document.querySelectorAll('#qLang button').forEach(x => x.classList.toggle('on', x === b));
+  updateTermPreviews(); saveDraft();
+});
+
+$('#cName').addEventListener('input', e => {
+  q.client.name = e.target.value;
+  const known = clients.find(c => c.name.toLowerCase() === q.client.name.trim().toLowerCase());
+  if (known) {
+    Object.assign(q.client, { code: known.code, attn: known.attn, email: known.email, phone: known.phone });
+    q.codeFrom = 'client';
+    for (const k of ['code', 'attn', 'email', 'phone']) $('#c' + k[0].toUpperCase() + k.slice(1)).value = q.client[k];
+  } else if (q.codeFrom === 'client') {
+    q.codeFrom = 'auto';
+  }
+  refreshComputed();
+});
+$('#cCode').addEventListener('input', e => {
+  const v = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  e.target.value = v; q.client.code = v; q.codeFrom = v ? 'manual' : 'auto'; refreshComputed();
+});
+for (const k of ['attn', 'email', 'phone']) {
+  $('#c' + k[0].toUpperCase() + k.slice(1)).addEventListener('input', e => { q.client[k] = e.target.value; saveDraft(); });
+}
+
+$('#items').addEventListener('input', e => {
+  const f = e.target.dataset.f; if (!f) return;
+  const i = +e.target.closest('.item').dataset.i;
+  q.items[i][f] = e.target.value;
+  if (f === 'desc') {
+    const known = products.find(p => p.desc === e.target.value);
+    if (known) {
+      q.items[i].material = known.material;
+      e.target.closest('.item').querySelector('[data-f=material]').value = known.material;
+    }
+  }
+  refreshComputed();
+});
+$('#items').addEventListener('click', e => {
+  const act = e.target.dataset.act; if (!act) return;
+  const i = +e.target.closest('.item').dataset.i;
+  if (act === 'dup') q.items.splice(i + 1, 0, clone(q.items[i]));
+  if (act === 'del') q.items.splice(i, 1);
+  renderItems(); refreshComputed();
+});
+$('#btnAddItem').addEventListener('click', () => {
+  q.items.push(blankItem()); renderItems(); refreshComputed();
+  const last = document.querySelector('#items .item:last-child input'); last && last.focus();
+});
+
+$('#terms').addEventListener('input', e => {
+  const row = e.target.closest('.term'); if (!row) return;
+  const k = row.dataset.k;
+  if (e.target.type === 'checkbox') { q.terms.on[k] = e.target.checked; row.classList.toggle('off', !e.target.checked); }
+  else if (e.target.dataset.p) {
+    const p = e.target.dataset.p;
+    q.terms[p] = p === 'delivery' ? e.target.value : e.target.value.replace(/[^\d.]/g, '');
+  }
+  updateTermPreviews(); saveDraft();
+});
+$('#customTerms').addEventListener('input', e => {
+  const row = e.target.closest('.term'); if (!row) return;
+  const c = q.terms.custom[+row.dataset.c];
+  if (e.target.type === 'checkbox') { c.on = e.target.checked; row.classList.toggle('off', !c.on); }
+  else c.text = e.target.value;
+  saveDraft();
+});
+$('#customTerms').addEventListener('click', e => {
+  if (e.target.dataset.act !== 'delterm') return;
+  q.terms.custom.splice(+e.target.closest('.term').dataset.c, 1); renderTerms(); saveDraft();
+});
+$('#btnAddTerm').addEventListener('click', () => {
+  q.terms.custom.push({ on: true, text: '' }); renderTerms(); saveDraft();
+  const ta = document.querySelector('#customTerms .term:last-child textarea'); ta && ta.focus();
+});
+$('#btnSaveTerms').addEventListener('click', () => {
+  settings.terms = clone(q.terms); saveSettings(); toast('Términos guardados como default');
+});
+$('#btnNew').addEventListener('click', () => {
+  if (!confirm('¿Empezar una cotización nueva? Lo que no hayas enviado se perderá.')) return;
+  q = newQuote(); renderForm(); window.scrollTo(0, 0);
+});
+
+// ---------------------------------------------------------------- save to history / catalogs
+function validate() {
+  if (!q.client.name.trim()) return 'Falta el nombre del cliente';
+  const filled = q.items.filter(it => it.desc.trim());
+  if (!filled.length) return 'Agrega al menos una partida con descripción';
+  return null;
+}
+
+function commit() {
+  const c = q.client, name = c.name.trim();
+  const i = clients.findIndex(x => x.name.toLowerCase() === name.toLowerCase());
+  const rec = { name, code: c.code, attn: c.attn, email: c.email, phone: c.phone };
+  if (i >= 0) clients[i] = rec; else clients.push(rec);
+  clients.sort((a, b) => a.name.localeCompare(b.name));
+  store.set('clients', clients);
+
+  q.items.filter(it => it.desc.trim()).forEach(it => {
+    const j = products.findIndex(p => p.desc === it.desc.trim());
+    const p = { desc: it.desc.trim(), material: it.material.trim() };
+    if (j >= 0) products[j] = p; else products.push(p);
+  });
+  store.set('products', products);
+
+  const saved = Object.assign(clone(q), { total: total(), savedAt: new Date().toISOString() });
+  const k = quotes.findIndex(x => x.id === q.id);
+  if (k >= 0) quotes[k] = saved; else quotes.unshift(saved);
+  store.set('quotes', quotes);
+  $('#clientList').innerHTML = clients.map(c => `<option value="${esc(c.name)}">`).join('');
+  $('#productList').innerHTML = products.map(p => `<option value="${esc(p.desc)}">`).join('');
+}
+
+// ---------------------------------------------------------------- PDF
+let logoData = null;
+async function loadLogo() {
+  if (logoData) return logoData;
+  const blob = await (await fetch('logo.png')).blob();
+  logoData = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+  return logoData;
+}
+
+const L = {
+  en: { title: 'QUOTATION', date: 'Issue Date', quote: 'Quote', location: 'Location', contact: 'Contact:',
+        customer: 'Customer:', attn: 'Attn:', cols: ['Item', 'Description', 'Material', 'Annual\nDemand', 'P/U', 'LT', 'MOQ'],
+        days: 'Days', tbd: 'TBD', total: 'Total USD', terms: 'TERMS AND CONDITIONS', thanks: 'Thank You For Your Business!' },
+  es: { title: 'COTIZACIÓN', date: 'Fecha', quote: 'Cotización', location: 'Ubicación', contact: 'Contacto:',
+        customer: 'Cliente:', attn: 'Atención:', cols: ['Partida', 'Descripción', 'Material', 'Demanda\nAnual', 'P/U', 'T. Entrega', 'MOQ'],
+        days: 'días', tbd: 'Por definir', total: 'Total USD', terms: 'TÉRMINOS Y CONDICIONES', thanks: '¡Gracias por su preferencia!' }
+};
+
+function fmtDate(iso, lang) {
+  const [y, m, d] = iso.split('-');
+  return lang === 'es' ? `${d}/${m}/${y}` : `${m}/${d}/${y}`;
+}
+
+async function buildPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'letter' });
+  const lang = q.lang, T = L[lang];
+  const prof = profile(q.profileId);
+  const BLUE = [47, 85, 151], LINK = [70, 120, 140];
+  const W = 792, H = 612, X0 = 50, X1 = 735;
+
+  // ---- header: logo + contact
+  const logo = await loadLogo();
+  doc.addImage(logo, 'PNG', 58, 46, 88, 65);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(0);
+  let cy = 128;
+  doc.text(T.contact, 52, cy);
+  const px = Math.max(103, 52 + doc.getTextWidth(T.contact) + 8);
+  doc.text(prof.name, px, cy); cy += 13;
+  if (prof.title) { doc.text(prof.title, px, cy); cy += 13; }
+  if (prof.phone) { doc.text(prof.phone, px, cy); cy += 15; }
+  if (prof.email) {
+    doc.setTextColor(...LINK);
+    const em = 'E: ' + prof.email;
+    doc.textWithLink(em, px, cy, { url: 'mailto:' + prof.email });
+    doc.setLineWidth(0.5); doc.setDrawColor(...LINK); doc.line(px, cy + 1.5, px + doc.getTextWidth(em), cy + 1.5);
+    doc.setTextColor(0); cy += 13;
+  }
+
+  // ---- center: company name + customer
+  doc.setFont('times', 'bold'); doc.setFontSize(12.5);
+  const [c1, c2] = COMPANY.split('|');
+  doc.text(c1, 407, 96, { align: 'center' });
+  doc.text(c2, 407, 109, { align: 'center' });
+
+  const c = q.client;
+  let ky = 130;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+  doc.text(T.customer, 290, ky);
+  const cx = 290 + doc.getTextWidth(T.customer) + 6;
+  doc.setFont('helvetica', 'normal');
+  doc.text(c.name, cx, ky); ky += 12.5;
+  if (c.attn) { doc.text(`${T.attn} ${c.attn}`, cx, ky); ky += 12.5; }
+  const reach = [c.email, c.phone].filter(Boolean).join('  ·  ');
+  if (reach) { doc.text(reach, cx, ky); ky += 12.5; }
+
+  // ---- right: quotation box
+  doc.setFillColor(...BLUE); doc.setDrawColor(0); doc.setLineWidth(1);
+  doc.rect(535, 53, 200, 40, 'FD');
+  doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(11.5);
+  doc.text(T.title, 635, 77, { align: 'center' });
+  doc.setTextColor(0); doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+  const boxRows = [[T.date, fmtDate(q.date, lang), 93, 13.5], [T.quote, q.number, 106.5, 13.5], ['', '', 120, 13], [T.location, q.location, 133, 26]];
+  doc.setLineWidth(0.8);
+  boxRows.forEach(([lab, val, y, h]) => {
+    doc.rect(607, y, 128, h);
+    if (lab) doc.text(lab, 538, y + h - 3.5 - (h > 14 ? 6 : 0));
+    if (val) doc.text(val, 671, y + h - 3.5 - (h > 14 ? 6 : 0), { align: 'center', maxWidth: 124 });
+  });
+
+  // ---- items table
+  const colW = [50, 182, 118, 64, 75, 73, 81];
+  const colX = colW.reduce((a, w, i) => (a.push(a[i] + w), a), [X0]);
+  const TX1 = colX[colX.length - 1];
+  let y = Math.max(172, cy + 8, ky + 4);
+
+  const drawHead = () => {
+    const h = 31;
+    doc.setFillColor(...BLUE); doc.setDrawColor(0); doc.setLineWidth(1.2);
+    doc.rect(X0, y, TX1 - X0, h, 'FD');
+    doc.setTextColor(255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    T.cols.forEach((t, i) => {
+      const lines = t.split('\n');
+      const mid = colX[i] + colW[i] / 2;
+      lines.forEach((ln, k) => doc.text(ln, mid, y + h / 2 + 3 + (k - (lines.length - 1) / 2) * 10.5, { align: 'center' }));
+      if (i) doc.line(colX[i], y, colX[i], y + h);
+    });
+    doc.setTextColor(0); y += h;
+  };
+  drawHead();
+
+  const rows = q.items.filter(it => it.desc.trim() || num(it.demand) || num(it.pu));
+  const ltText = v => { const s = String(v).trim(); return /^\d+(\.\d+)?$/.test(s) ? `${s} ${T.days}` : s; };
+  const moqText = v => { const s = String(v).trim(); return !s || s.toUpperCase() === 'TBD' ? T.tbd : s; };
+
+  doc.setFontSize(9.5);
+  rows.forEach((it, idx) => {
+    doc.setFont('helvetica', 'normal');
+    const descL = doc.splitTextToSize(it.desc, colW[1] - 10);
+    doc.setFontSize(9);
+    const matL = doc.splitTextToSize(it.material, colW[2] - 6);
+    doc.setFontSize(9.5);
+    const h = Math.max(30, Math.max(descL.length, matL.length) * 11 + 8);
+    if (y + h > H - 50) { doc.addPage(); y = 50; drawHead(); doc.setFontSize(9.5); }
+    doc.setLineWidth(1.2); doc.rect(X0, y, TX1 - X0, h);
+    colX.slice(1, -1).forEach(x => doc.line(x, y, x, y + h));
+    const mid = y + h / 2 + 3.3;
+    const block = (lines, x) => lines.forEach((ln, k) => doc.text(ln, x, mid + (k - (lines.length - 1) / 2) * 11, { align: 'center' }));
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+    doc.text(String(idx + 1), colX[0] + colW[0] / 2, mid, { align: 'center' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+    block(descL, colX[1] + colW[1] / 2);
+    doc.setFontSize(9); block(matL, colX[2] + colW[2] / 2); doc.setFontSize(9.5);
+    doc.text(num(it.demand) ? fmtInt(num(it.demand)) : '', colX[3] + colW[3] / 2, mid, { align: 'center' });
+    if (String(it.pu).trim()) {
+      doc.text('$', colX[4] + 6, mid);
+      doc.text(fmtPU(num(it.pu)), colX[5] - 6, mid, { align: 'right' });
+    }
+    doc.text(ltText(it.lt), colX[5] + colW[5] / 2, mid, { align: 'center' });
+    doc.text(moqText(it.moq), colX[6] + colW[6] / 2, mid, { align: 'center' });
+    y += h;
+  });
+
+  // total row
+  if (y + 16 > H - 50) { doc.addPage(); y = 50; }
+  const th = 15;
+  doc.setLineWidth(1.2);
+  doc.rect(colX[5], y, TX1 - colX[5], th);
+  doc.line(colX[6], y, colX[6], y + th);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+  doc.text(T.total, colX[5] + colW[5] / 2, y + 10.5, { align: 'center' });
+  doc.text('$', colX[6] + 6, y + 10.5);
+  doc.text(fmtMoney(total()), TX1 - 6, y + 10.5, { align: 'right' });
+  y += th + 12;
+
+  // ---- terms
+  const lines = termLines(q.terms, lang);
+  doc.setFontSize(11);
+  const textW = X1 - X0 - 10;
+  const blocks = lines.map((t, i) => doc.splitTextToSize(`${i + 1}. ${t}`, textW));
+  const termsH = 22 + blocks.reduce((s, b) => s + b.length * 13 + 3, 0) + 26;
+  if (y + termsH > H - 30) { doc.addPage(); y = 50; }
+  doc.setLineWidth(1.2); doc.rect(X0, y, X1 - X0, termsH);
+  let ty = y + 15;
+  doc.setFont('helvetica', 'bold'); doc.text(T.terms, X0 + 5, ty); ty += 15;
+  doc.setFont('helvetica', 'normal');
+  blocks.forEach(b => { b.forEach(ln => { doc.text(ln, X0 + 5, ty); ty += 13; }); ty += 3; });
+  doc.setFont('helvetica', 'bolditalic');
+  doc.text(T.thanks, (X0 + X1) / 2, y + termsH - 8, { align: 'center' });
+
+  return doc;
+}
+
+async function makePDFFile() {
+  const err = validate();
+  if (err) { toast(err); return null; }
+  if (!window.jspdf) { toast('No se pudo cargar el generador de PDF. Revisa tu conexión.'); return null; }
+  refreshComputed();
+  commit();
+  const doc = await buildPDF();
+  const name = `MPDA Quote ${q.number}.pdf`;
+  return new File([doc.output('blob')], name, { type: 'application/pdf' });
+}
+
+function download(file) {
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a'); a.href = url; a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+$('#btnShare').addEventListener('click', async () => {
+  const file = await makePDFFile(); if (!file) return;
+  const subject = q.lang === 'es' ? `Cotización MPDA ${q.number}` : `MPDA Quotation ${q.number}`;
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: subject }); }
+    catch (e) { if (e.name !== 'AbortError') download(file); }
+  } else {
+    download(file); toast('PDF descargado');
+  }
+});
+
+$('#btnPreview').addEventListener('click', async () => {
+  const win = window.open('', '_blank');
+  const file = await makePDFFile();
+  if (!file) { win && win.close(); return; }
+  const url = URL.createObjectURL(file);
+  if (win) win.location.href = url; else download(file);
+});
+
+// ---------------------------------------------------------------- historial
+function renderHistory() {
+  const s = $('#histSearch').value.trim().toLowerCase();
+  const list = quotes.filter(x => !s || x.number.toLowerCase().includes(s) || x.client.name.toLowerCase().includes(s));
+  $('#histList').innerHTML = list.length ? list.map(x => `
+    <div class="hist" data-id="${x.id}">
+      <div class="info"><b>${esc(x.number)}</b>
+        <span>${esc(x.client.name)} · ${fmtDate(x.date, 'es')} · $${fmtMoney(x.total || 0)} · ${x.lang.toUpperCase()}</span></div>
+      <button class="btn ghost small" data-act="open">Abrir</button>
+      <button class="btn ghost small" data-act="copy">Copiar</button>
+    </div>`).join('') : '<div class="empty">Aún no hay cotizaciones enviadas.</div>';
+}
+$('#histSearch').addEventListener('input', renderHistory);
+$('#histList').addEventListener('click', e => {
+  const act = e.target.dataset.act; if (!act) return;
+  const src = quotes.find(x => x.id === e.target.closest('.hist').dataset.id);
+  q = clone(src); delete q.total; delete q.savedAt;
+  q.codeFrom = 'manual';
+  if (act === 'copy') { q.id = uid(); q.date = todayISO(); toast('Copia lista con fecha de hoy'); }
+  else toast('Editando ' + src.number);
+  renderForm(); showTab('nueva'); window.scrollTo(0, 0);
+});
+
+// ---------------------------------------------------------------- ajustes
+function renderSettings() {
+  $('#profilePick').innerHTML = settings.profiles.map(p => `
+    <button data-id="${p.id}" class="${p.id === settings.profileId ? 'on' : ''}">
+      <b>${esc(p.name)}</b><small>${esc([p.title, p.email].filter(Boolean).join(' · '))}</small>
+    </button>`).join('');
+  $('#profileEdit').innerHTML = settings.profiles.map((p, i) => `
+    <div class="item" data-i="${i}">
+      <div class="row">
+        <div><label>Nombre</label><input data-f="name" value="${esc(p.name)}"></div>
+        <div><label>Puesto (opcional)</label><input data-f="title" value="${esc(p.title)}"></div>
+      </div>
+      <div class="row">
+        <div><label>Teléfono</label><input data-f="phone" type="tel" value="${esc(p.phone)}"></div>
+        <div><label>Correo</label><input data-f="email" type="email" autocapitalize="off" value="${esc(p.email)}"></div>
+      </div>
+    </div>`).join('') + `
+    <label>Ubicación por defecto</label><input id="defLocation" value="${esc(settings.location)}">`;
+  const p = profile(settings.profileId);
+  $('#whoLabel').textContent = settings.profileId ? p.name : '';
+}
+$('#profilePick').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  settings.profileId = b.dataset.id; saveSettings();
+  q.profileId = settings.profileId; $('#qProfile').value = q.profileId; saveDraft();
+  renderSettings(); toast('Listo, ' + profile(settings.profileId).name.split(' ')[0]);
+});
+$('#profileEdit').addEventListener('input', e => {
+  if (e.target.id === 'defLocation') { settings.location = e.target.value; saveSettings(); return; }
+  const f = e.target.dataset.f; if (!f) return;
+  settings.profiles[+e.target.closest('.item').dataset.i][f] = e.target.value;
+  saveSettings();
+  $('#qProfile').innerHTML = settings.profiles.map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  $('#qProfile').value = q.profileId;
+});
+
+$('#btnExport').addEventListener('click', () => {
+  const data = { app: 'mpda-cotizador', version: 1, exportedAt: new Date().toISOString(), settings, clients, products, quotes };
+  download(new File([JSON.stringify(data, null, 2)], `mpda-respaldo-${todayISO()}.json`, { type: 'application/json' }));
+});
+$('#btnImport').addEventListener('click', () => $('#importFile').click());
+$('#importFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (data.app !== 'mpda-cotizador') throw new Error();
+    // merge: keep what is here, add what is new
+    const byName = new Map(clients.map(c => [c.name.toLowerCase(), c]));
+    (data.clients || []).forEach(c => byName.set(c.name.toLowerCase(), byName.get(c.name.toLowerCase()) || c));
+    clients = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const byDesc = new Map(products.map(p => [p.desc, p]));
+    (data.products || []).forEach(p => byDesc.has(p.desc) || byDesc.set(p.desc, p));
+    products = [...byDesc.values()];
+    const ids = new Set(quotes.map(x => x.id));
+    quotes = quotes.concat((data.quotes || []).filter(x => !ids.has(x.id)))
+      .sort((a, b) => (b.savedAt || '').localeCompare(a.savedAt || ''));
+    store.set('clients', clients); store.set('products', products); store.set('quotes', quotes);
+    renderForm(); renderHistory();
+    toast('Respaldo importado');
+  } catch { toast('Ese archivo no es un respaldo válido'); }
+  e.target.value = '';
+});
+
+// ---------------------------------------------------------------- tabs + boot
+function showTab(name) {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  ['nueva', 'historial', 'ajustes'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== name));
+  $('#bar').classList.toggle('hidden', name !== 'nueva');
+  if (name === 'historial') renderHistory();
+  if (name === 'ajustes') renderSettings();
+}
+document.querySelector('nav.tabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (b) { showTab(b.dataset.tab); window.scrollTo(0, 0); }
+});
+
+q = store.get('draft', null) || newQuote();
+renderForm();
+renderSettings();
+if (!settings.profileId) { showTab('ajustes'); toast('Primero elige quién eres'); }
+
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
